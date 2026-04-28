@@ -1449,6 +1449,7 @@ function openAddModal() {
   document.getElementById('fClient').value = '';
   document.getElementById('fPhone').value = '';
   document.getElementById('fEmail').value = '';
+  document.getElementById('fEmail').value = '';
   document.getElementById('fDate').value = selectedDate || '';
   document.getElementById('fNotes').value = '';
   document.getElementById('resBtnDelete').style.display = 'none';
@@ -1463,6 +1464,7 @@ function openEditModal(id) {
   document.getElementById('fGown').value = r.gown;
   document.getElementById('fClient').value = r.client;
   document.getElementById('fPhone').value = r.phone;
+  document.getElementById('fEmail').value = r.email || '';
   document.getElementById('fEmail').value = r.email || '';
   document.getElementById('fDate').value = r.date;
   document.getElementById('fNotes').value = r.notes;
