@@ -1,3 +1,6 @@
 [build]
   functions = "netlify/functions"
   publish = "."
+
+[functions."make-call"]
+  schedule = "0 14 * * *"
