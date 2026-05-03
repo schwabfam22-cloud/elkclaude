@@ -1,0 +1,135 @@
+// Netlify function: receives calendar events from Make.com
+// Place at: netlify/functions/sync-from-powerautomate.js
+
+const SUPA_URL = 'https://qolawxoyirwrkxohxwat.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvbGF3eG95aXJ3cmt4b2h4d2F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzkyNzYsImV4cCI6MjA5MjkxNTI3Nn0.lwPybb7_KoXsp6CDsL0CeP3QzkFU0_LZWscAkYDVZIc';
+
+function parseGowns(subject) {
+  if (!subject) return [];
+  const tokens = subject.split(/[\s,]+/).filter(t => t);
+  if (tokens.length <= 7) {
+    const gowns = subject.split(/[,\s]+/).map(t => t.trim()).filter(t => /\d{3}/.test(t));
+    return gowns.length ? gowns : [subject.trim()];
+  }
+  return subject.match(/\d{3,}[a-zA-Z]*/g) || [subject.trim()];
+}
+
+function parseLocation(location) {
+  if (!location) return { client: '', phone: '' };
+  const phoneM = location.match(/(\(?\d{3}\)?[\s\-\.]?\d{3}[\s\-\.]?\d{4}|\d{10,})/);
+  if (phoneM) {
+    const phone  = phoneM[0].trim();
+    const client = location.slice(0, phoneM.index).replace(/^l/i, '').trim();
+    return { client: client.replace(/\b\w/g, l => l.toUpperCase()), phone };
+  }
+  return { client: location.replace(/^l/i, '').trim().replace(/\b\w/g, l => l.toUpperCase()), phone: '' };
+}
+
+function extractDate(start) {
+  if (!start) return '';
+  if (typeof start === 'string') return start.slice(0, 10);
+  if (typeof start === 'object') {
+    const val = start.date || start.dateTime || start.value || start.string || '';
+    return String(val).slice(0, 10);
+  }
+  return String(start).slice(0, 10);
+}
+
+exports.handler = async function(event) {
+  if (event.httpMethod === 'GET') {
+    return { statusCode: 200, body: 'OK' };
+  }
+
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, body: 'Method Not Allowed' };
+  }
+
+  // Log raw body for debugging
+  console.log('RAW BODY:', event.body);
+
+  let body;
+  try {
+    body = JSON.parse(event.body);
+  } catch(e) {
+    console.log('JSON PARSE ERROR:', e.message);
+    return { statusCode: 400, body: 'Invalid JSON: ' + event.body };
+  }
+
+  console.log('PARSED BODY:', JSON.stringify(body));
+
+  const { subject, location, start, id, action } = body;
+  const date = extractDate(start);
+
+  console.log('DATE:', date, 'SUBJECT:', subject, 'LOCATION:', location, 'ID:', id);
+
+  if (!subject) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'Missing subject', received: body }) };
+  }
+
+  if (!date || date.length < 10) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid date', start, received: body }) };
+  }
+
+  const gowns = parseGowns(subject);
+  const { client, phone } = parseLocation(location || '');
+
+  console.log('GOWNS:', gowns, 'CLIENT:', client, 'PHONE:', phone);
+
+  try {
+    if (action === 'deleted') {
+      await fetch(`${SUPA_URL}/rest/v1/reservations?graph_id=eq.${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}` },
+      });
+      return { statusCode: 200, body: JSON.stringify({ deleted: true, id }) };
+    }
+
+    // Check if exists
+    const existRes = await fetch(
+      `${SUPA_URL}/rest/v1/reservations?graph_id=eq.${encodeURIComponent(id)}&select=id`,
+      { headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}` } }
+    );
+    const existing = await existRes.json();
+    console.log('EXISTING:', JSON.stringify(existing));
+
+    let added = 0, updated = 0;
+
+    if (existing && existing.length > 0) {
+      const patchRes = await fetch(`${SUPA_URL}/rest/v1/reservations?graph_id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPA_KEY,
+          'Authorization': `Bearer ${SUPA_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ date, gown: gowns[0], client, phone }),
+      });
+      console.log('PATCH STATUS:', patchRes.status);
+      updated = 1;
+    } else {
+      for (const gown of gowns) {
+        const insertRes = await fetch(`${SUPA_URL}/rest/v1/reservations`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPA_KEY,
+            'Authorization': `Bearer ${SUPA_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal',
+          },
+          body: JSON.stringify({ date, gown, client, phone, graph_id: id }),
+        });
+        console.log('INSERT STATUS:', insertRes.status, 'GOWN:', gown);
+        added++;
+      }
+    }
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ success: true, added, updated, date, gowns, client, phone }),
+    };
+  } catch(e) {
+    console.error('ERROR:', e);
+    return { statusCode: 500, body: JSON.stringify({ error: e.message }) };
+  }
+};
