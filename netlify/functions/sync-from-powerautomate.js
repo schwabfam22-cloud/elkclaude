@@ -16,13 +16,24 @@ function parseGowns(subject) {
 
 function parseLocation(location) {
   if (!location) return { client: '', phone: '' };
-  const phoneM = location.match(/(\(?\d{3}\)?[\s\-\.]?\d{3}[\s\-\.]?\d{4}|\d{10,})/);
+
+  // Make.com sends location as JSON string — parse it first
+  let displayName = location;
+  try {
+    const parsed = JSON.parse(location);
+    displayName = parsed.displayName || parsed.DisplayName || location;
+  } catch(e) {
+    // Not JSON — use as-is
+    displayName = location;
+  }
+
+  const phoneM = displayName.match(/(\(?\d{3}\)?[\s\-\.]?\d{3}[\s\-\.]?\d{4}|\d{10,})/);
   if (phoneM) {
     const phone  = phoneM[0].trim();
-    const client = location.slice(0, phoneM.index).replace(/^l/i, '').trim();
+    const client = displayName.slice(0, phoneM.index).replace(/^l/i, '').trim();
     return { client: client.replace(/\b\w/g, l => l.toUpperCase()), phone };
   }
-  return { client: location.replace(/^l/i, '').trim().replace(/\b\w/g, l => l.toUpperCase()), phone: '' };
+  return { client: displayName.replace(/^l/i, '').trim().replace(/\b\w/g, l => l.toUpperCase()), phone: '' };
 }
 
 function extractDate(start) {
