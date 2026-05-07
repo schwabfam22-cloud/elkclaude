@@ -63,7 +63,7 @@ function buildTwiML(reservation) {
   const returnDateStr = formatDateSpoken(returnDate);
 
   const message =
-    `Mah-zuhl tuv on your upcoming wedding! ` +
+    `Mah-zuhl tuv on your wedding! ` +
     `This is a message from Schwab gowns. ` +
     `We're calling to remind you to return your gown on ${returnDateStr}, ` +
     `between ${returnTime}. ` +
@@ -71,7 +71,13 @@ function buildTwiML(reservation) {
     `If you have any questions, please call us back at 7 3 2, 6 6 6, 9 9 9 8. ` +
     `Thank you and goodbye.`;
 
-  return `<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="Polly.Joanna" language="en-US">${message}</Say></Response>`;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Pause length="2"/>
+  <Say voice="Polly.Joanna" language="en-US" rate="85%">
+    ${message}
+  </Say>
+</Response>`;
 }
 
 async function makeCall(toPhone, twiml, twilioToken) {
