@@ -1,5 +1,5 @@
-const TWILIO_SID   = 'AC29ab20b780418597697919a44f26c051';
-const TWILIO_FROM  = '+18553072497';
+const TWILIO_SID   = process.env.TWILIO_SID;
+const TWILIO_FROM  = process.env.TWILIO_FROM;
 const SUPA_URL     = 'https://qolawxoyirwrkxohxwat.supabase.co';
 const SUPA_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvbGF3eG95aXJ3cmt4b2h4d2F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzkyNzYsImV4cCI6MjA5MjkxNTI3Nn0.lwPybb7_KoXsp6CDsL0CeP3QzkFU0_LZWscAkYDVZIc';
 
